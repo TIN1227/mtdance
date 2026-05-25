@@ -305,12 +305,12 @@
 </div>
 
 <script>
-    // ⚠️ 重要：請把下方引號內換成你剛剛在第5步複製的 Google GAS 網頁應用程式網址！
+    // ⚠️ 請確保這裡放的是妳最新的 GAS 網址
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzqlyM74EFClkBS5BfxFpJOB-P2MJyvcWCqMicKGR2FzGimtO7bZRddu2gLiYUOH9OnfQ/exec";
 
     let currentPhone = "";
 
-    // 1. 處理查詢邏輯
+    // 1. 處理查詢邏輯 (改用 GET 請求)
     async function handleQuery() {
         const phoneInput = document.getElementById("student-phone").value.trim();
         const errorMsg = document.getElementById("error-msg");
@@ -324,7 +324,6 @@
             return;
         }
 
-        // 初始化狀態
         errorMsg.innerText = "";
         btnText.style.display = "none";
         spinner.style.display = "block";
@@ -332,28 +331,24 @@
         checkinArea.style.display = "none";
 
         try {
-            const response = await fetch(GAS_API_URL, {
-                method: "POST",
-                body: JSON.stringify({
-                    action: "query",
-                    phone: phoneInput
-                })
-            });
+            // 把參數直接加在網址後面連動
+            const queryUrl = `${GAS_API_URL}?action=query&phone=${encodeURIComponent(phoneInput)}`;
+            
+            const response = await fetch(queryUrl, { method: "GET" });
             const data = await response.json();
 
             if (data.status === "success") {
-                currentPhone = phoneInput; // 鎖定當前查詢的手機
+                currentPhone = phoneInput; 
                 document.getElementById("display-name").innerText = `${data.name} 妳好！`;
                 document.getElementById("display-remaining").innerText = data.remaining;
                 
-                // 秀出結果面板與打卡區
                 resultPanel.style.display = "block";
                 checkinArea.style.display = "block";
             } else {
                 errorMsg.innerText = `❌ ${data.message}`;
             }
         } catch (err) {
-            errorMsg.innerText = "❌ 連線失敗，請檢查網路或確認 API 網址是否正確。";
+            errorMsg.innerText = "❌ 連線失敗，請確認後端設定是否正確。";
             console.error(err);
         } finally {
             btnText.style.display = "block";
@@ -361,7 +356,7 @@
         }
     }
 
-    // 2. 處理確認打卡扣課邏輯
+    // 2. 處理確認打卡扣課邏輯 (改用 GET 請求)
     async function handleCheckIn() {
         const courseSelect = document.getElementById("course-select").value;
         const errorMsg = document.getElementById("error-msg");
@@ -369,7 +364,7 @@
         const spinner = document.getElementById("checkin-spinner");
 
         if (!courseSelect) {
-            errorMsg.innerText = "⚠️ 請選擇今天要上的課程！";
+            errorMsg.innerText = "⚠️ 請選擇妳今天要上的課程！";
             return;
         }
 
@@ -378,21 +373,16 @@
         spinner.style.display = "block";
 
         try {
-            const response = await fetch(GAS_API_URL, {
-                method: "POST",
-                body: JSON.stringify({
-                    action: "checkin",
-                    phone: currentPhone,
-                    course: courseSelect
-                })
-            });
+            // 把參數直接加在網址後面連動
+            const checkinUrl = `${GAS_API_URL}?action=checkin&phone=${encodeURIComponent(currentPhone)}&course=${encodeURIComponent(courseSelect)}`;
+
+            const response = await fetch(checkinUrl, { method: "GET" });
             const data = await response.json();
 
             if (data.status === "success") {
                 document.getElementById("display-remaining").innerText = data.remaining;
                 alert(`🎉 簽到成功！\n${data.name} 已成功扣除 1 堂課，剩餘 ${data.remaining} 堂。`);
                 
-                // 打卡成功後重置頁面
                 document.getElementById("student-phone").value = "";
                 document.getElementById("course-select").selectedIndex = 0;
                 document.getElementById("result-panel").style.display = "none";
