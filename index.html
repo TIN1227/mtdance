@@ -305,12 +305,33 @@
 </div>
 
 <script>
-    // ⚠️ 請確保這裡放的是妳最新的 GAS 網址
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzqlyM74EFClkBS5BfxFpJOB-P2MJyvcWCqMicKGR2FzGimtO7bZRddu2gLiYUOH9OnfQ/exec";
-
     let currentPhone = "";
 
-    // 1. 處理查詢邏輯 (改用 GET 請求)
+    // 🧬 JSONP 的核心發送發：動態建立 <script> 標籤繞過 CORS
+    function sendJsonpRequest(url, callbackName) {
+        return new Promise((resolve, reject) => {
+            // 建立一個全局全域函式讓 Google 呼叫
+            window[callbackName] = function(data) {
+                resolve(data);
+                // 執行完就拔掉標籤，保持網頁乾淨
+                document.getElementById(callbackName)?.remove();
+                delete window[callbackName];
+            };
+
+            const script = document.createElement("script");
+            script.id = callbackName;
+            script.src = `${url}&callback=${callbackName}&_=${new Date().getTime()}`; // 加上時間戳防止快取
+            script.onerror = () => {
+                reject(new Error("網路連線失敗"));
+                document.getElementById(callbackName)?.remove();
+                delete window[callbackName];
+            };
+            document.body.appendChild(script);
+        });
+    }
+
+    // 1. 處理查詢邏輯
     async function handleQuery() {
         const phoneInput = document.getElementById("student-phone").value.trim();
         const errorMsg = document.getElementById("error-msg");
@@ -331,11 +352,9 @@
         checkinArea.style.display = "none";
 
         try {
-            // 把參數直接加在網址後面連動
             const queryUrl = `${GAS_API_URL}?action=query&phone=${encodeURIComponent(phoneInput)}`;
-            
-            const response = await fetch(queryUrl, { method: "GET" });
-            const data = await response.json();
+            // 呼叫 JSONP
+            const data = await sendJsonpRequest(queryUrl, "jsonp_query_" + Math.floor(Math.random() * 100000));
 
             if (data.status === "success") {
                 currentPhone = phoneInput; 
@@ -348,7 +367,7 @@
                 errorMsg.innerText = `❌ ${data.message}`;
             }
         } catch (err) {
-            errorMsg.innerText = "❌ 連線失敗，請確認後端設定是否正確。";
+            errorMsg.innerText = "❌ 連線失敗，請確認試算表設定。";
             console.error(err);
         } finally {
             btnText.style.display = "block";
@@ -356,7 +375,7 @@
         }
     }
 
-    // 2. 處理確認打卡扣課邏輯 (改用 GET 請求)
+    // 2. 處理確認打卡扣課邏輯
     async function handleCheckIn() {
         const courseSelect = document.getElementById("course-select").value;
         const errorMsg = document.getElementById("error-msg");
@@ -373,11 +392,9 @@
         spinner.style.display = "block";
 
         try {
-            // 把參數直接加在網址後面連動
             const checkinUrl = `${GAS_API_URL}?action=checkin&phone=${encodeURIComponent(currentPhone)}&course=${encodeURIComponent(courseSelect)}`;
-
-            const response = await fetch(checkinUrl, { method: "GET" });
-            const data = await response.json();
+            // 呼叫 JSONP
+            const data = await sendJsonpRequest(checkinUrl, "jsonp_checkin_" + Math.floor(Math.random() * 100000));
 
             if (data.status === "success") {
                 document.getElementById("display-remaining").innerText = data.remaining;
